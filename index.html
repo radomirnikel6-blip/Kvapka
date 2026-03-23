@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Kvapky - Hra</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: sans-serif; touch-action: none; }
+        #game-container { position: relative; width: 100vw; height: 100vh; background-color: #e0f7fa; }
+        
+        /* Pohár - jednoduchý sivý obdĺžnik */
+        #bucket { 
+            position: absolute; bottom: 20px; width: 80px; height: 60px; 
+            background-color: #555; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+            left: 50%; transform: translateX(-50%);
+        }
+
+        /* Kvapky - jednoduché farebné krúžky */
+        .drop { position: absolute; width: 20px; height: 20px; border-radius: 50%; }
+        .blue-drop { background-color: #007bff; }
+        .green-drop { background-color: #28a745; }
+
+        #ui { position: absolute; top: 10px; left: 10px; font-size: 20px; color: #333; font-weight: bold; }
+        
+        #game-over { 
+            display: none; position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); background: white; padding: 30px; 
+            border: 5px solid #333; text-align: center; width: 70%; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui">Skóre: <span id="score">0</span> | Čas: <span id="timer">60</span>s</div>
+    <div id="bucket"></div>
+    <div id="game-over">
+        <h1>KONIEC HRY</h1>
+        <p id="final-score" style="font-size: 24px;"></p>
+        <button onclick="location.reload()" style="padding: 15px 30px; font-size: 18px; cursor: pointer;">HRAŤ ZNOVA</button>
+    </div>
+</div>
+
+<script>
+    const bucket = document.getElementById('bucket');
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    const container = document.getElementById('game-container');
+    
+    let score = 0;
+    let timeLeft = 60;
+    let gameActive = true;
+
+    // Ovládanie - myš aj dotyk
+    function moveHandler(e) {
+        if (!gameActive) return;
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let x = clientX - bucket.offsetWidth / 2;
+        x = Math.max(0, Math.min(x, window.innerWidth - bucket.offsetWidth));
+        bucket.style.left = x + 'px';
+    }
+
+    window.addEventListener('mousemove', moveHandler);
+    window.addEventListener('touchmove', moveHandler);
+
+    function createDrop() {
+        if (!gameActive) return;
+
+        const drop = document.createElement('div');
+        const isGreen = Math.random() > 0.7; // 30% šanca na zelenú
+        
+        drop.className = 'drop ' + (isGreen ? 'green-drop' : 'blue-drop');
+        drop.style.left = Math.random() * (window.innerWidth - 20) + 'px';
+        drop.style.top = '-20px';
+        container.appendChild(drop);
+
+        let pos = -20;
+        let speed = 4 + Math.random() * 6; // Rôzna rýchlosť padania
+
+        function fall() {
+            if (!gameActive) { drop.remove(); return; }
+            
+            pos += speed;
+            drop.style.top = pos + 'px';
+
+            const d = drop.getBoundingClientRect();
+            const b = bucket.getBoundingClientRect();
+
+            // Detekcia chytenia
+            if (d.bottom >= b.top && d.right >= b.left && d.left <= b.right && d.top <= b.bottom) {
+                score += isGreen ? -10 : 10;
+                scoreEl.innerText = score;
+                drop.remove();
+                return;
+            }
+
+            if (pos > window.innerHeight) {
+                drop.remove();
+            } else {
+                requestAnimationFrame(fall);
+            }
+        }
+        requestAnimationFrame(fall);
+    }
+
+    // Intervaly hry
+    const dropGen = setInterval(createDrop, 350); // Nová kvapka každých 0.35 sekundy
+
+    const clock = setInterval(() => {
+        timeLeft--;
+        timerEl.innerText = timeLeft;
+        if (timeLeft <= 0) {
+            gameActive = false;
+            clearInterval(dropGen);
+            clearInterval(clock);
+            document.getElementById('final-score').innerText = "Tvoje skóre: " + score;
+            document.getElementById('game-over').style.display = 'block';
+        }
+    }, 1000);
+</script>
+
+</body>
+</html>
