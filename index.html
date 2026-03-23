@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kvapky - Mobilná verzia</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #e3f2fd; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        canvas { display: block; background: linear-gradient(#b3e5fc, #ffffff); }
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; pointer-events: none; }
+        .score-text { font-size: 24px; font-weight: bold; color: #01579b; text-shadow: 1px 1px 2px white; }
+        
+        /* Leaderboard okno */
+        #endScreen { 
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 20px; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            z-index: 10; width: 80%; max-width: 300px; text-align: center;
+        }
+        button { background: #0288d1; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 18px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div class="score-text">Skóre: <span id="score">0</span></div>
+</div>
+
+<div id="endScreen">
+    <h2>Koniec hry!</h2>
+    <p id="finalScore"></p>
+    <div id="leaderboardList"></div>
+    <button onclick="resetGame()">Hrať znova</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreElement = document.getElementById("score");
+const endScreen = document.getElementById("endScreen");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let gameOver = false;
+let drops = [];
+let gameTimer = 60; // ZMENENÉ NA 60 SEKÚND
+
+const player = {
+    w: 70, h: 50, x: canvas.width / 2 - 35, y: canvas.height - 100
+};
+
+// --- OVLÁDANIE PRE MOBIL ---
+function handleInput(e) {
+    if (gameOver) return;
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    player.x = clientX - player.w / 2;
+    
+    // Zabrany vybehnutiu z obrazovky
+    if (player.x < 0) player.x = 0;
+    if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
+}
+
+window.addEventListener("touchmove", handleInput, { passive: false });
+window.addEventListener("touchstart", handleInput, { passive: false });
+
+function createDrop() {
+    if (gameOver) return;
+    const isBad = Math.random() < 0.25;
+    drops.push({
+        x: Math.random() * (canvas.width - 30) + 15,
+        y: -20,
+        speed: 4 + Math.random() * 5,
+        type: isBad ? "green" : "blue",
+        r: 12
+    });
+}
+
+function update() {
+    if (gameOver) return;
+
+    if (Math.random() < 0.05) createDrop();
+
+    drops.forEach((drop, index) => {
+        drop.y += drop.speed;
+
+        // Kolízia
+        if (drop.y + drop.r > player.y && drop.y < player.y + player.h &&
+            drop.x > player.x && drop.x < player.x + player.w) {
+            
+            if (drop.type === "blue") {
+                score += 10;
+            } else {
+                score = Math.max(0, score - 20);
+            }
+            scoreElement.innerText = score;
+            drops.splice(index, 1);
+        }
+
+        if (drop.y > canvas.height) drops.splice(index, 1);
+    });
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Kreslenie pohára (jednoduchý tvar)
+    ctx.fillStyle = "#90caf9";
+    ctx.beginPath();
+    ctx.moveTo(player.x, player.y);
+    ctx.lineTo(player.x + player.w, player.y);
+    ctx.lineTo(player.x + player.w - 10, player.y + player.h);
+    ctx.lineTo(player.x + 10, player.y + player.h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#0d47a1";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Kreslenie kvapiek
+    drops.forEach(drop => {
+        ctx.beginPath();
+        // Tvar kvapky
+        ctx.arc(drop.x, drop.y, drop.r, 0, Math.PI);
+        ctx.lineTo(drop.x, drop.y - drop.r * 1.5);
+        ctx.fillStyle = drop.type === "blue" ? "#0288d1" : "#4caf50";
+        ctx.fill();
+        ctx.closePath();
+    });
+
+    if (!gameOver) requestAnimationFrame(draw);
+    update();
+}
+
+function showLeaderboard() {
+    gameOver = true;
+    let scores = JSON.parse(localStorage.getItem("waterHits")) || [];
+    scores.push(score);
+    scores.sort((a, b) => b - a);
+    scores = scores.slice(0, 5);
+    localStorage.setItem("waterHits", JSON.stringify(scores));
+
+    document.getElementById("finalScore").innerText = "Tvoje skóre: " + score;
+    document.getElementById("leaderboardList").innerHTML = "<strong>TOP 5:</strong><br>" + scores.join("<br>");
+    endScreen.style.display = "block";
+}
+
+function resetGame() {
+    score = 0;
+    scoreElement.innerText = "0";
+    drops = [];
+    gameOver = false;
+    endScreen.style.display = "none";
+    draw();
+    setTimeout(showLeaderboard, 60000); // ZMENENÉ NA 60000 ms (1 min)
+}
+
+// Spustenie
+setTimeout(showLeaderboard, 60000); // ZMENENÉ NA 60000 ms (1 min)
+draw();
+</script>
+</body>
+</html>
