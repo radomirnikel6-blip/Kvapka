@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chytač kvapiek</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #202020, #111);
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('https://images.unsplash.com/photo-1438449805896-28a666819a20?auto=format&fit=crop&q=80&w=1920');
+            background-size: cover;
+            background-position: center;
+        }
+        #bucket {
+            position: absolute;
+            bottom: 20px;
+            width: 100px;
+            height: 120px;
+            background: url('https://cdn-icons-png.flaticon.com/512/4241/4241459.png') no-repeat center;
+            background-size: contain;
+            cursor: pointer;
+            transition: transform 0.1s ease-out;
+        }
+        .drop {
+            position: absolute;
+            width: 30px;
+            height: 45px;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        .blue-drop { background-image: url('https://cdn-icons-png.flaticon.com/512/3144/3144468.png'); }
+        .green-drop { background-image: url('https://cdn-icons-png.flaticon.com/512/3144/3144502.png'); filter: hue-rotate(90deg); }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+        }
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            border: 2px solid #00d2ff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui">Skóre: <span id="score">0</span> | Čas: <span id="timer">60</span>s</div>
+    <div id="bucket"></div>
+    <div id="game-over">
+        <h1>Koniec hry!</h1>
+        <p id="final-score-text"></p>
+        <button onclick="location.reload()" style="padding: 10px 20px; cursor: pointer;">Hrať znova</button>
+    </div>
+</div>
+
+<script>
+    const container = document.getElementById('game-container');
+    const bucket = document.getElementById('bucket');
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    const gameOverScreen = document.getElementById('game-over');
+    const finalScoreText = document.getElementById('final-score-text');
+
+    let score = 0;
+    let timeLeft = 60;
+    let gameActive = true;
+
+    // Pohyb pohára myšou
+    window.addEventListener('mousemove', (e) => {
+        if (!gameActive) return;
+        let x = e.clientX - bucket.offsetWidth / 2;
+        // Udržať pohár v rámci obrazovky
+        x = Math.max(0, Math.min(x, window.innerWidth - bucket.offsetWidth));
+        bucket.style.left = x + 'px';
+    });
+
+    // Vytváranie kvapiek
+    function createDrop() {
+        if (!gameActive) return;
+
+        const drop = document.createElement('div');
+        const isGreen = Math.random() > 0.8; // 20% šanca na zelenú kvapku
+        
+        drop.className = 'drop ' + (isGreen ? 'green-drop' : 'blue-drop');
+        drop.style.left = Math.random() * (window.innerWidth - 30) + 'px';
+        drop.style.top = '-50px';
+        container.appendChild(drop);
+
+        let position = -50;
+        let speed = 3 + Math.random() * 4;
+
+        function fall() {
+            if (!gameActive) {
+                drop.remove();
+                return;
+            }
+            
+            position += speed;
+            drop.style.top = position + 'px';
+
+            // Kolízia s pohárom
+            const dropRect = drop.getBoundingClientRect();
+            const bucketRect = bucket.getBoundingClientRect();
+
+            if (
+                dropRect.bottom >= bucketRect.top &&
+                dropRect.right >= bucketRect.left &&
+                dropRect.left <= bucketRect.right &&
+                dropRect.top <= bucketRect.bottom
+            ) {
+                if (isGreen) {
+                    score -= 5;
+                } else {
+                    score += 10;
+                }
+                scoreEl.innerText = score;
+                drop.remove();
+                return;
+            }
+
+            // Odstránenie ak vypadne z obrazovky
+            if (position > window.innerHeight) {
+                drop.remove();
+            } else {
+                requestAnimationFrame(fall);
+            }
+        }
+        requestAnimationFrame(fall);
+    }
+
+    // Intervaly
+    const dropInterval = setInterval(createDrop, 400);
+
+    const countdown = setInterval(() => {
+        timeLeft--;
+        timerEl.innerText = timeLeft;
+        if (timeLeft <= 0) {
+            endGame();
+        }
+    }, 1000);
+
+    function endGame() {
+        gameActive = false;
+        clearInterval(dropInterval);
+        clearInterval(countdown);
+        finalScoreText.innerText = "Tvoje konečné skóre je: " + score;
+        gameOverScreen.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
